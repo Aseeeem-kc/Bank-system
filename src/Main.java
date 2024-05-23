@@ -1,42 +1,192 @@
-import java.util.ArrayList;
-import java.util.Scanner;
+import java.awt.*;
+import java.io.*;
+import java.util.LinkedList;
 
-public class Main {
-    public static void main(String[] args) {
-        ReadAccounts reader = new ReadAccounts("src/bank_data.csv");
+class ReadAccount {
 
-        ArrayList<String> firstNames = reader.getFirstNames();
-        ArrayList<String> lastNames = reader.getLastNames();
-        ArrayList<Integer> accountNumbers = reader.getAccountNumbers();
-        ArrayList<Integer> balances = reader.getBalances();
+    private String filePath;
+    private LinkedList<String> firstNames;
+    private LinkedList<String> lastNames;
+    private LinkedList<Integer> accountNumbers;
+    private LinkedList<Double> balances;
 
-        // Displaying the read data
-        for (int i = 0; i < firstNames.size(); i++) {
-            System.out.println("First Name: " + firstNames.get(i));
-            System.out.println("Last Name: " + lastNames.get(i));
-            System.out.println("Account Number: " + accountNumbers.get(i));
-            System.out.println("Balance: " + balances.get(i));
-            System.out.println();
+    public ReadAccount(String s) throws IOException {
+        this.filePath = "accounts.csv";
+
+        // linked list initialization for account details
+        firstNames = new LinkedList<>();
+        lastNames = new LinkedList<>();
+        accountNumbers = new LinkedList<>();
+        balances = new LinkedList<>();
+
+        // Read the file
+        InputStream inputStream = getClass().getResourceAsStream(filePath);
+        if (inputStream == null) {
+            throw new FileNotFoundException("File not found: " + filePath);
         }
 
-        Customer customer2 = new Customer("Ashim", "KC");
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
+            String line;
 
-        // Create a new Account for Ashim KC with an initial balance of 10000
-        Account account2 = new Account(customer2, 10000);
+            // Read lines for account data
+            while ((line = reader.readLine()) != null) {
+                String[] values = line.split(",");
+                firstNames.add(values[0]);
+                lastNames.add(values[1]);
+                accountNumbers.add(Integer.parseInt(values[2]));
+                try {
+                    balances.add(Double.parseDouble(values[3]));
+                } catch (NumberFormatException e) {
+                    System.err.println("Invalid balance format in a row: " + line);
+                }
+            }
+        }
+    }
 
-        // Display the account details
-        System.out.println("Account created for " + customer2.firstName + " " + customer2.lastName);
-        System.out.println("Account Number: " + account2.accNo);
-        System.out.println("Initial Balance: " + account2.getBalance());
+    // Getter methods for LinkedLists
+    public LinkedList<String> getFirstNames() {
+        return firstNames;
+    }
 
-        Customer customer3 = new Customer("Ashim", "KC");
+    public LinkedList<String> getLastNames() {
+        return lastNames;
+    }
 
-        // Create a new Account for Ashim KC with an initial balance of 10000
-        Account account3 = new Account(customer2, 10000);
+    public LinkedList<Integer> getAccountNumbers() {
+        return accountNumbers;
+    }
 
-        // Display the account details
-        System.out.println("Account created for " + customer2.firstName + " " + customer2.lastName);
-        System.out.println("Account Number: " + account3.accNo);
-        System.out.println("Initial Balance: " + account3.getBalance());
+    public LinkedList<Double> getBalances() {
+        return balances;
     }
 }
+
+// Customer class
+class Customer {
+    private String firstName;
+    private String lastName;
+
+    public String getFirstName() {
+        return firstName;
+    }
+
+    public String getLastName() {
+        return lastName;
+    }
+
+    public void setFirstName(String fName) {
+        this.firstName = fName;
+    }
+
+    public void setLastName(String lName) {
+        this.lastName = lName;
+    }
+}
+
+// Account class
+class Account extends Customer {
+    private int accountNumber;
+    private double balance;
+
+    public Account(String fName, String lName, int accountNumber, double balance) {
+        setFirstName(fName);
+        setLastName(lName);
+        this.accountNumber = accountNumber;
+        this.balance = balance;
+    }
+
+    public double getBalance() {
+        return balance;
+    }
+
+    public int getAccountNum() {
+        return accountNumber;
+    }
+
+    public void deposit(double amount) {
+        balance += amount;
+    }
+
+    public boolean withdraw(double amount) {
+        if (balance >= amount) {
+            balance -= amount;
+            return true;
+        } else {
+            return false;
+        }
+    }
+}
+
+// Transaction class
+class Transaction {
+    public boolean transfer(Account fromAccount, Account toAccount, double amount) {
+        if (fromAccount.withdraw(amount)) {
+            toAccount.deposit(amount);
+            return true;
+        } else {
+            return false;
+        }
+    }
+}
+
+// Main class
+public class Main {
+
+    public static void main(String[] args) {
+
+        // Create a ReadAccount object to read account information from CSV
+        ReadAccount readAccounts;
+        LinkedList<Account> accounts = new LinkedList<>();
+
+        try {
+            readAccounts = new ReadAccount("/home/ashim/IdeaProjects/ashim_khatrichhetri_2408241_OOPassessment/src/accounts.csv");
+
+            LinkedList<String> firstNames = readAccounts.getFirstNames();
+            LinkedList<String> lastNames = readAccounts.getLastNames();
+            LinkedList<Integer> accountNumbers = readAccounts.getAccountNumbers();
+            LinkedList<Double> balances = readAccounts.getBalances();
+
+            // Create accounts based on CSV data
+            for (int i = 0; i < accountNumbers.size(); i++) {
+                accounts.add(new Account(
+                        firstNames.get(i),
+                        lastNames.get(i),
+                        accountNumbers.get(i),
+                        balances.get(i)
+                ));
+            }
+
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        // Set up GUI
+        EventQueue.invokeLater(new Runnable() {
+            public void run() {
+                try {
+                    GUI frame = new GUI(accounts);
+                    frame.setVisible(true);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+    }
+    // Method to update the CSV file after each transaction
+    public static void updateCSV(LinkedList<Account> accounts) {
+        try {
+            FileWriter writer = new FileWriter("/home/ashim/IdeaProjects/ashim_khatrichhetri_2408241_OOPassessment/src/accounts.csv");
+            BufferedWriter bufferedWriter = new BufferedWriter(writer);
+
+            for (Account account : accounts) {
+                bufferedWriter.write(account.getFirstName() + "," + account.getLastName() + "," +
+                        account.getAccountNum() + "," + account.getBalance() + "\n");
+            }
+
+            bufferedWriter.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+}}
